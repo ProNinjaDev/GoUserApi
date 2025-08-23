@@ -71,13 +71,61 @@ func handleUserGetById(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func main() {
-	//http.HandleFunc("/", handleRoot)
-	//http.HandleFunc("/user/", handleUserCreate)
+// GET /user?status=true&name=alex
+func handleUserGetByFilter(w http.ResponseWriter, r *http.Request) {
+	statusString := r.URL.Query().Get("status")
+	name := r.URL.Query().Get("name")
 
+	log.Printf("Получен запрос на получение списка пользователей с фильтрами: status=%s, name=%s", statusString, name)
+	w.Write([]byte(" GET /user/ с фильтрами status=" + statusString + ", name=" + name))
+}
+
+// PUT /user/{id}
+func handleUserUpdate(w http.ResponseWriter, r *http.Request) {
+	userIdString := chi.URLParam(r, "id")
+
+	userId, err := strconv.ParseInt(userIdString, 10, 64)
+
+	if err != nil {
+		log.Printf("Не удалось сконвертировать ID: %v", err)
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	log.Printf("Получен запрос на изменение пользователя с ID: %d", userId)
+
+	w.Write([]byte("PUT /user/{id} принят с id = " + userIdString))
+}
+
+// DELETE /user/{id}
+func handleUserDelete(w http.ResponseWriter, r *http.Request) {
+	userIdString := chi.URLParam(r, "id")
+
+	userId, err := strconv.ParseInt(userIdString, 10, 64)
+
+	if err != nil {
+		log.Printf("Не удалось сконвертировать ID: %v", err)
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	log.Printf("Получен запрос на удаление пользователя с ID: %d", userId)
+
+	w.Write([]byte("DELETE /user/{id} принят с id = " + userIdString))
+
+}
+
+func main() {
 	r := chi.NewRouter()
+	r.Route("/user", func(r chi.Router) {
+		r.Post("/", handleUserCreate)
+		r.Get("/", handleUserGetByFilter)
+		r.Get("/{id}", handleUserGetById)
+		r.Put("/{id}", handleUserUpdate)
+		r.Delete("/{id}", handleUserDelete)
+	})
+
 	r.Get("/", handleRoot)
-	r.Post("/user", handleUserCreate)
 
 	log.Println("Запуск сервера")
 
