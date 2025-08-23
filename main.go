@@ -44,7 +44,7 @@ func handleUserCreate(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Printf("Ошибка декодирования юзера JSON: %v", err)
-		http.Error(w, "Некорректный запрос", http.StatusBadRequest)
+		http.Error(w, "Invalid request", http.StatusBadRequest)
 
 		return
 	}
