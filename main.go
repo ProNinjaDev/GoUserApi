@@ -38,7 +38,7 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 }
 
 // POST /user/
-func handleUserCreate(w http.ResponseWriter, r *http.Request) {
+func (a *api) handleUserCreate(w http.ResponseWriter, r *http.Request) {
 	log.Println("Получен запрос на создание пользователя")
 
 	var user User
@@ -50,6 +50,15 @@ func handleUserCreate(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Ошибка декодирования юзера JSON: %v", err)
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 
+		return
+	}
+
+	query := "INSERT INTO users (name, status) VALUES ($1, $2) RETURNING id"
+	err = a.db.QueryRowContext(r.Context(), query, user.Name, user.Status).Scan(&user.Id)
+
+	if err != nil {
+		log.Printf("Не удалось вставить пользователя в БД: %v", err)
+		http.Error(w, "Failed to create user", http.StatusInternalServerError)
 		return
 	}
 
