@@ -1,11 +1,13 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"log"
 	"net/http"
 	"strconv"
 
+	"github.com/ProNinjaDev/GoUserApi/internal/config"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -13,6 +15,10 @@ type User struct {
 	Id     int64
 	Name   string
 	Status bool
+}
+
+type api struct {
+	db *sql.DB
 }
 
 func handleRoot(w http.ResponseWriter, r *http.Request) {
@@ -116,6 +122,15 @@ func handleUserDelete(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	db, err := config.ConnectDatabase()
+	if err != nil {
+		log.Fatalf("Не удалось подключиться к БД: %v", err)
+	}
+
+	defer db.Close()
+
+	apiObj := &api{db: db}
+
 	r := chi.NewRouter()
 	r.Route("/user", func(r chi.Router) {
 		r.Post("/", handleUserCreate)
@@ -129,7 +144,7 @@ func main() {
 
 	log.Println("Запуск сервера")
 
-	err := http.ListenAndServe(":8081", r)
+	err = http.ListenAndServe(":8081", r)
 
 	if err != nil {
 		log.Fatalf("Не удалось запустить сервер: %v", err)
