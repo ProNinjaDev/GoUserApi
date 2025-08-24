@@ -8,14 +8,11 @@ import (
 	"strconv"
 
 	"github.com/ProNinjaDev/GoUserApi/internal/config"
+	"github.com/ProNinjaDev/GoUserApi/internal/user/handler"
+	"github.com/ProNinjaDev/GoUserApi/internal/user/repository"
+	"github.com/ProNinjaDev/GoUserApi/internal/user/service"
 	"github.com/go-chi/chi/v5"
 )
-
-type User struct {
-	Id     int64
-	Name   string
-	Status bool
-}
 
 type api struct {
 	db *sql.DB
@@ -38,36 +35,7 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 }
 
 // POST /user/
-func (a *api) handleUserCreate(w http.ResponseWriter, r *http.Request) {
-	log.Println("Получен запрос на создание пользователя")
-
-	var user User
-
-	jsonDecoder := json.NewDecoder(r.Body)
-	err := jsonDecoder.Decode(&user)
-
-	if err != nil {
-		log.Printf("Ошибка декодирования юзера JSON: %v", err)
-		http.Error(w, "Invalid request", http.StatusBadRequest)
-
-		return
-	}
-
-	query := "INSERT INTO users (name, status) VALUES ($1, $2) RETURNING id"
-	err = a.db.QueryRowContext(r.Context(), query, user.Name, user.Status).Scan(&user.Id)
-
-	if err != nil {
-		log.Printf("Не удалось вставить пользователя в БД: %v", err)
-		http.Error(w, "Failed to create user", http.StatusInternalServerError)
-		return
-	}
-
-	log.Println("Создание успешное")
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(user)
-}
+// func (a *api) handleUserCreate(w http.ResponseWriter, r *http.Request) {}
 
 // GET /user/{id}
 func (a *api) handleUserGetById(w http.ResponseWriter, r *http.Request) {
@@ -277,9 +245,13 @@ func main() {
 
 	apiObj := &api{db: db}
 
+	userRepo := repository.NewUserRepository(db)
+	userService := service.NewUserService(userRepo)
+	userHandler := handler.NewUserHandler(userService)
+
 	r := chi.NewRouter()
 	r.Route("/user", func(r chi.Router) {
-		r.Post("/", apiObj.handleUserCreate)
+		r.Post("/", userHandler.Create)
 		r.Get("/", apiObj.handleUserGetByFilter)
 		r.Get("/{id}", apiObj.handleUserGetById)
 		r.Put("/{id}", apiObj.handleUserUpdate)
