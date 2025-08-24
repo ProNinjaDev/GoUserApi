@@ -70,7 +70,7 @@ func (a *api) handleUserCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 // GET /user/{id}
-func handleUserGetById(w http.ResponseWriter, r *http.Request) {
+func (a *api) handleUserGetById(w http.ResponseWriter, r *http.Request) {
 	userIdString := chi.URLParam(r, "id")
 
 	userId, err := strconv.ParseInt(userIdString, 10, 64)
@@ -82,12 +82,31 @@ func handleUserGetById(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("Получен запрос на получение пользователя с ID: %d", userId)
 
-	w.Write([]byte("GET /user/{id} принят с id = " + userIdString))
+	query := "SELECT id, name, status FROM users WHERE id = $1"
+
+	var user User
+	err = a.db.QueryRowContext(r.Context(), query, userId).Scan(&user.Id, &user.Name, &user.Status)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			log.Printf("Пользователь с ID = %d не найден", userId)
+			http.Error(w, "User not found", http.StatusNotFound)
+			return
+		}
+
+		log.Printf("Не удалось найти пользователя в БД: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(user)
 
 }
 
 // GET /user?status=true&name=alex
-func handleUserGetByFilter(w http.ResponseWriter, r *http.Request) {
+func (a *api) handleUserGetByFilter(w http.ResponseWriter, r *http.Request) {
 	statusString := r.URL.Query().Get("status")
 	name := r.URL.Query().Get("name")
 
@@ -96,7 +115,7 @@ func handleUserGetByFilter(w http.ResponseWriter, r *http.Request) {
 }
 
 // PUT /user/{id}
-func handleUserUpdate(w http.ResponseWriter, r *http.Request) {
+func (a *api) handleUserUpdate(w http.ResponseWriter, r *http.Request) {
 	userIdString := chi.URLParam(r, "id")
 
 	userId, err := strconv.ParseInt(userIdString, 10, 64)
@@ -113,7 +132,7 @@ func handleUserUpdate(w http.ResponseWriter, r *http.Request) {
 }
 
 // DELETE /user/{id}
-func handleUserDelete(w http.ResponseWriter, r *http.Request) {
+func (a *api) handleUserDelete(w http.ResponseWriter, r *http.Request) {
 	userIdString := chi.URLParam(r, "id")
 
 	userId, err := strconv.ParseInt(userIdString, 10, 64)
@@ -142,11 +161,11 @@ func main() {
 
 	r := chi.NewRouter()
 	r.Route("/user", func(r chi.Router) {
-		r.Post("/", handleUserCreate)
-		r.Get("/", handleUserGetByFilter)
-		r.Get("/{id}", handleUserGetById)
-		r.Put("/{id}", handleUserUpdate)
-		r.Delete("/{id}", handleUserDelete)
+		r.Post("/", apiObj.handleUserCreate)
+		r.Get("/", apiObj.handleUserGetByFilter)
+		r.Get("/{id}", apiObj.handleUserGetById)
+		r.Put("/{id}", apiObj.handleUserUpdate)
+		r.Delete("/{id}", apiObj.handleUserDelete)
 	})
 
 	r.Get("/", handleRoot)
