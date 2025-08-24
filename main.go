@@ -184,8 +184,29 @@ func (a *api) handleUserDelete(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("Получен запрос на удаление пользователя с ID: %d", userId)
 
-	w.Write([]byte("DELETE /user/{id} принят с id = " + userIdString))
+	query := "DELETE FROM users WHERE id = $1"
+	result, err := a.db.ExecContext(r.Context(), query, userId)
+	if err != nil {
+		log.Printf("Не удалось удалить пользователя из БД: %v", err)
+		http.Error(w, "Failed to delete user", http.StatusInternalServerError)
+		return
+	}
 
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		log.Printf("Не удалось получить количество обновленных строк: %v", err)
+		http.Error(w, "Failed to update user", http.StatusInternalServerError)
+		return
+	}
+
+	if rowsAffected == 0 {
+		log.Printf("Не удалось найти пользователя с id = %d", userId)
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+	log.Printf("Пользователь с id %d успешно удален", userId)
 }
 
 func main() {
