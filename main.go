@@ -128,7 +128,46 @@ func (a *api) handleUserUpdate(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("Получен запрос на изменение пользователя с ID: %d", userId)
 
-	w.Write([]byte("PUT /user/{id} принят с id = " + userIdString))
+	var user User
+
+	jsonDecoder := json.NewDecoder(r.Body)
+	err = jsonDecoder.Decode(&user)
+
+	if err != nil {
+		log.Printf("Ошибка декодирования юзера JSON: %v", err)
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+
+		return
+	}
+
+	query := "UPDATE users SET name = $1, status = $2 WHERE id = $3"
+	result, err := a.db.ExecContext(r.Context(), query, user.Name, user.Status, userId)
+
+	if err != nil {
+		log.Printf("Не удалось обновить пользователя в БД: %v", err)
+		http.Error(w, "Failed to update user", http.StatusInternalServerError)
+		return
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		log.Printf("Не удалось получить количество обновленных строк: %v", err)
+		http.Error(w, "Failed to update user", http.StatusInternalServerError)
+		return
+	}
+
+	if rowsAffected == 0 {
+		log.Printf("Не удалось найти пользователя с id = %d", userId)
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	user.Id = userId
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(user)
+
+	log.Printf("Успешно обновился пользователь с id = %d", userId)
 }
 
 // DELETE /user/{id}
