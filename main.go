@@ -160,6 +160,12 @@ func (a *api) handleUserGetByFilter(w http.ResponseWriter, r *http.Request) {
 		users = append(users, user)
 	}
 
+	if err = rows.Err(); err != nil {
+		log.Printf("Произошла ошибка во время цикла по строкам из БД: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(users)
