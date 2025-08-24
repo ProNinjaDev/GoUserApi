@@ -111,7 +111,59 @@ func (a *api) handleUserGetByFilter(w http.ResponseWriter, r *http.Request) {
 	name := r.URL.Query().Get("name")
 
 	log.Printf("Получен запрос на получение списка пользователей с фильтрами: status=%s, name=%s", statusString, name)
-	w.Write([]byte(" GET /user/ с фильтрами status=" + statusString + ", name=" + name))
+
+	query := "SELECT id, name, status FROM users WHERE 1=1"
+
+	args := []any{}
+	argCnt := 1
+
+	if name != "" {
+		query += " AND name LIKE $" + strconv.Itoa(argCnt)
+		args = append(args, name)
+		argCnt++
+	}
+
+	if statusString != "" {
+		status, err := strconv.ParseBool(statusString)
+		if err != nil {
+			log.Printf("Неверное значение для status: %s", statusString)
+			http.Error(w, "Invalid status", http.StatusBadRequest)
+			return
+		}
+
+		query += " AND status = $" + strconv.Itoa(argCnt)
+		args = append(args, status)
+		argCnt++
+	}
+
+	rows, err := a.db.QueryContext(r.Context(), query, args...)
+
+	if err != nil {
+		log.Printf("Не удалось выполнить запрос к БД: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	defer rows.Close()
+
+	var users []User
+
+	for rows.Next() {
+		var user User
+
+		if err := rows.Scan(&user.Id, &user.Name, &user.Status); err != nil {
+			log.Printf("Не удалось сканировать из БД: %v", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		users = append(users, user)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(users)
+
 }
 
 // PUT /user/{id}
