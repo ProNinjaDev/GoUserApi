@@ -31,7 +31,6 @@ func (h *UserHandler) RegisterRoutes(r *chi.Mux) {
 }
 
 func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
-	log.Println("Получен запрос на создание пользователя")
 
 	var u user.User
 
@@ -68,7 +67,6 @@ func (h *UserHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid user ID", http.StatusBadRequest)
 		return
 	}
-	log.Printf("Получен запрос на получение пользователя с ID: %d", userId)
 
 	u, err := h.service.GetByID(r.Context(), userId)
 	if err != nil {
