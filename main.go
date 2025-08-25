@@ -41,127 +41,10 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 //func (a *api) handleUserGetById(w http.ResponseWriter, r *http.Request) {}
 
 // GET /user?status=true&name=alex
-func (a *api) handleUserGetByFilter(w http.ResponseWriter, r *http.Request) {
-	statusString := r.URL.Query().Get("status")
-	name := r.URL.Query().Get("name")
-
-	log.Printf("Получен запрос на получение списка пользователей с фильтрами: status=%s, name=%s", statusString, name)
-
-	query := "SELECT id, name, status FROM users WHERE 1=1"
-
-	args := []any{}
-	argCnt := 1
-
-	if name != "" {
-		query += " AND name LIKE $" + strconv.Itoa(argCnt)
-		args = append(args, name)
-		argCnt++
-	}
-
-	if statusString != "" {
-		status, err := strconv.ParseBool(statusString)
-		if err != nil {
-			log.Printf("Неверное значение для status: %s", statusString)
-			http.Error(w, "Invalid status", http.StatusBadRequest)
-			return
-		}
-
-		query += " AND status = $" + strconv.Itoa(argCnt)
-		args = append(args, status)
-		argCnt++
-	}
-
-	rows, err := a.db.QueryContext(r.Context(), query, args...)
-
-	if err != nil {
-		log.Printf("Не удалось выполнить запрос к БД: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	defer rows.Close()
-
-	var users []User
-
-	for rows.Next() {
-		var user User
-
-		if err := rows.Scan(&user.Id, &user.Name, &user.Status); err != nil {
-			log.Printf("Не удалось сканировать из БД: %v", err)
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
-		}
-
-		users = append(users, user)
-	}
-
-	if err = rows.Err(); err != nil {
-		log.Printf("Произошла ошибка во время цикла по строкам из БД: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(users)
-
-}
+//func (a *api) handleUserGetByFilter(w http.ResponseWriter, r *http.Request) {}
 
 // PUT /user/{id}
-func (a *api) handleUserUpdate(w http.ResponseWriter, r *http.Request) {
-	userIdString := chi.URLParam(r, "id")
-
-	userId, err := strconv.ParseInt(userIdString, 10, 64)
-
-	if err != nil {
-		log.Printf("Не удалось сконвертировать ID: %v", err)
-		http.Error(w, "Invalid user ID", http.StatusBadRequest)
-		return
-	}
-
-	log.Printf("Получен запрос на изменение пользователя с ID: %d", userId)
-
-	var user User
-
-	jsonDecoder := json.NewDecoder(r.Body)
-	err = jsonDecoder.Decode(&user)
-
-	if err != nil {
-		log.Printf("Ошибка декодирования юзера JSON: %v", err)
-		http.Error(w, "Invalid request", http.StatusBadRequest)
-
-		return
-	}
-
-	query := "UPDATE users SET name = $1, status = $2 WHERE id = $3"
-	result, err := a.db.ExecContext(r.Context(), query, user.Name, user.Status, userId)
-
-	if err != nil {
-		log.Printf("Не удалось обновить пользователя в БД: %v", err)
-		http.Error(w, "Failed to update user", http.StatusInternalServerError)
-		return
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		log.Printf("Не удалось получить количество обновленных строк: %v", err)
-		http.Error(w, "Failed to update user", http.StatusInternalServerError)
-		return
-	}
-
-	if rowsAffected == 0 {
-		log.Printf("Не удалось найти пользователя с id = %d", userId)
-		http.Error(w, "User not found", http.StatusNotFound)
-		return
-	}
-
-	user.Id = userId
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(user)
-
-	log.Printf("Успешно обновился пользователь с id = %d", userId)
-}
+//func (a *api) handleUserUpdate(w http.ResponseWriter, r *http.Request) {}
 
 // DELETE /user/{id}
 func (a *api) handleUserDelete(w http.ResponseWriter, r *http.Request) {
@@ -219,9 +102,9 @@ func main() {
 	r := chi.NewRouter()
 	r.Route("/user", func(r chi.Router) {
 		r.Post("/", userHandler.Create)
-		r.Get("/", apiObj.handleUserGetByFilter)
+		r.Get("/", userHandler.GetByFilter)
 		r.Get("/{id}", userHandler.GetByID)
-		r.Put("/{id}", apiObj.handleUserUpdate)
+		r.Put("/{id}", userHandler.Update)
 		r.Delete("/{id}", apiObj.handleUserDelete)
 	})
 

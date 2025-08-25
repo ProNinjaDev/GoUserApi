@@ -75,3 +75,52 @@ func (h *UserHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(u)
 }
+
+func (h *UserHandler) GetByFilter(w http.ResponseWriter, r *http.Request) {
+	statusString := r.URL.Query().Get("status")
+	name := r.URL.Query().Get("name")
+
+	users, err := h.service.GetByFilter(r.Context(), name, statusString)
+
+	if err != nil {
+		log.Printf("Не удалось получить пользователей: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(users)
+}
+
+func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
+	userIdString := chi.URLParam(r, "id")
+
+	userId, err := strconv.ParseInt(userIdString, 10, 64)
+
+	if err != nil {
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	var u user.User
+	if err := json.NewDecoder(r.Body).Decode(&u); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.service.Update(r.Context(), userId, u); err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "User not found", http.StatusNotFound)
+			return
+		}
+		log.Printf("Не удалось обновить пользователя: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	u.Id = userId
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(u)
+}
