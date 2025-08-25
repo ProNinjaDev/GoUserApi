@@ -20,6 +20,16 @@ func NewUserHandler(s service.Service) *UserHandler {
 	return &UserHandler{service: s}
 }
 
+func (h *UserHandler) RegisterRoutes(r *chi.Mux) {
+	r.Route("/user", func(r chi.Router) {
+		r.Post("/", h.Create)
+		r.Get("/", h.GetByFilter)
+		r.Get("/{id}", h.GetByID)
+		r.Put("/{id}", h.Update)
+		r.Delete("/{id}", h.Delete)
+	})
+}
+
 func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 	log.Println("Получен запрос на создание пользователя")
 
@@ -123,4 +133,27 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(u)
+}
+
+func (h *UserHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	userIdString := chi.URLParam(r, "id")
+
+	userId, err := strconv.ParseInt(userIdString, 10, 64)
+
+	if err != nil {
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.service.Delete(r.Context(), userId); err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "User not found", http.StatusNotFound)
+			return
+		}
+		log.Printf("Не удалось удалить пользователя: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

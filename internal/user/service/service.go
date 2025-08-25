@@ -12,6 +12,7 @@ type Service interface {
 	GetByID(ctx context.Context, id int64) (*user.User, error)
 	GetByFilter(ctx context.Context, name, status string) ([]user.User, error)
 	Update(ctx context.Context, id int64, u user.User) error
+	Delete(ctx context.Context, id int64) error
 }
 
 type userService struct {
@@ -36,4 +37,8 @@ func (s *userService) GetByFilter(ctx context.Context, name, status string) ([]u
 
 func (s *userService) Update(ctx context.Context, id int64, u user.User) error {
 	return s.repo.Update(ctx, id, u)
+}
+
+func (s *userService) Delete(ctx context.Context, id int64) error {
+	return s.repo.Delete(ctx, id)
 }

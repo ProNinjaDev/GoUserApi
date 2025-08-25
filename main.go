@@ -1,11 +1,9 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"log"
 	"net/http"
-	"strconv"
 
 	"github.com/ProNinjaDev/GoUserApi/internal/config"
 	"github.com/ProNinjaDev/GoUserApi/internal/user/handler"
@@ -13,10 +11,6 @@ import (
 	"github.com/ProNinjaDev/GoUserApi/internal/user/service"
 	"github.com/go-chi/chi/v5"
 )
-
-type api struct {
-	db *sql.DB
-}
 
 func handleRoot(w http.ResponseWriter, r *http.Request) {
 	log.Println("Получен запрос")
@@ -34,57 +28,6 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// POST /user/
-// func (a *api) handleUserCreate(w http.ResponseWriter, r *http.Request) {}
-
-// GET /user/{id}
-//func (a *api) handleUserGetById(w http.ResponseWriter, r *http.Request) {}
-
-// GET /user?status=true&name=alex
-//func (a *api) handleUserGetByFilter(w http.ResponseWriter, r *http.Request) {}
-
-// PUT /user/{id}
-//func (a *api) handleUserUpdate(w http.ResponseWriter, r *http.Request) {}
-
-// DELETE /user/{id}
-func (a *api) handleUserDelete(w http.ResponseWriter, r *http.Request) {
-	userIdString := chi.URLParam(r, "id")
-
-	userId, err := strconv.ParseInt(userIdString, 10, 64)
-
-	if err != nil {
-		log.Printf("Не удалось сконвертировать ID: %v", err)
-		http.Error(w, "Invalid user ID", http.StatusBadRequest)
-		return
-	}
-
-	log.Printf("Получен запрос на удаление пользователя с ID: %d", userId)
-
-	query := "DELETE FROM users WHERE id = $1"
-	result, err := a.db.ExecContext(r.Context(), query, userId)
-	if err != nil {
-		log.Printf("Не удалось удалить пользователя из БД: %v", err)
-		http.Error(w, "Failed to delete user", http.StatusInternalServerError)
-		return
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		log.Printf("Не удалось получить количество обновленных строк: %v", err)
-		http.Error(w, "Failed to update user", http.StatusInternalServerError)
-		return
-	}
-
-	if rowsAffected == 0 {
-		log.Printf("Не удалось найти пользователя с id = %d", userId)
-		http.Error(w, "User not found", http.StatusNotFound)
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
-	log.Printf("Пользователь с id %d успешно удален", userId)
-}
-
 func main() {
 	db, err := config.ConnectDatabase()
 	if err != nil {
@@ -93,21 +36,13 @@ func main() {
 
 	defer db.Close()
 
-	apiObj := &api{db: db}
-
 	userRepo := repository.NewUserRepository(db)
 	userService := service.NewUserService(userRepo)
 	userHandler := handler.NewUserHandler(userService)
 
 	r := chi.NewRouter()
-	r.Route("/user", func(r chi.Router) {
-		r.Post("/", userHandler.Create)
-		r.Get("/", userHandler.GetByFilter)
-		r.Get("/{id}", userHandler.GetByID)
-		r.Put("/{id}", userHandler.Update)
-		r.Delete("/{id}", apiObj.handleUserDelete)
-	})
 
+	userHandler.RegisterRoutes(r)
 	r.Get("/", handleRoot)
 
 	log.Println("Запуск сервера")
