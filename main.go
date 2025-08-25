@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/ProNinjaDev/GoUserApi/internal/user/service"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/spf13/viper"
 )
 
 func handleRoot(w http.ResponseWriter, r *http.Request) {
@@ -30,7 +32,21 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	db, err := config.ConnectDatabase()
+
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath(".")
+	err := viper.ReadInConfig()
+
+	if err != nil {
+		panic(fmt.Errorf("fatal error config file: %w", err))
+	}
+
+	var cfg config.Config
+
+	err = viper.Unmarshal(&cfg)
+
+	db, err := config.ConnectDatabase(cfg)
 	if err != nil {
 		log.Fatalf("Не удалось подключиться к БД: %v", err)
 	}
@@ -49,7 +65,7 @@ func main() {
 
 	log.Println("Запуск сервера")
 
-	err = http.ListenAndServe(":8081", r)
+	err = http.ListenAndServe(cfg.ServerPort, r)
 
 	if err != nil {
 		log.Fatalf("Не удалось запустить сервер: %v", err)

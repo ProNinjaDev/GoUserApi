@@ -4,40 +4,14 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"os"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-func ConnectDatabase() (*sql.DB, error) {
-	host := os.Getenv("DB_HOST")
-	port := os.Getenv("DB_PORT")
-	user := os.Getenv("DB_USER")
-	password := os.Getenv("DB_PASSWORD")
-	dbName := os.Getenv("DB_NAME")
-
-	if host == "" {
-		host = "localhost"
-	}
-
-	if port == "" {
-		port = "5432"
-	}
-
-	if user == "" {
-		user = "myuser"
-	}
-
-	if password == "" {
-		password = "12345"
-	}
-
-	if dbName == "" {
-		dbName = "user_api_db"
-	}
+func ConnectDatabase(cfg Config) (*sql.DB, error) {
 
 	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		host, port, user, password, dbName)
+		cfg.DatabaseHost, cfg.DatabasePort, cfg.DatabaseUser, cfg.DatabasePassword, cfg.DatabaseName)
 
 	db, err := sql.Open("pgx", dsn)
 
