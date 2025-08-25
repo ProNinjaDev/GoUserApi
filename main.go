@@ -10,6 +10,7 @@ import (
 	"github.com/ProNinjaDev/GoUserApi/internal/user/repository"
 	"github.com/ProNinjaDev/GoUserApi/internal/user/service"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 func handleRoot(w http.ResponseWriter, r *http.Request) {
@@ -41,6 +42,7 @@ func main() {
 	userHandler := handler.NewUserHandler(userService)
 
 	r := chi.NewRouter()
+	r.Use(middleware.Logger)
 
 	userHandler.RegisterRoutes(r)
 	r.Get("/", handleRoot)
