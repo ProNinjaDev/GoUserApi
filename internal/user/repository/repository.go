@@ -27,3 +27,15 @@ func (r *userRepository) Create(ctx context.Context, u *user.User) error {
 	query := "INSERT INTO users (name, status) VALUES ($1, $2) RETURNING id"
 	return r.db.QueryRowContext(ctx, query, u.Name, u.Status).Scan(&u.Id)
 }
+
+func (r *userRepository) GetByID(ctx context.Context, id int64) (*user.User, error) {
+	query := "SELECT id, name, status FROM users WHERE id = $1"
+	var u user.User
+
+	err := r.db.QueryRowContext(ctx, query, id).Scan(&u.Id, &u.Name, &u.Status)
+	if err != nil {
+		return nil, err
+	}
+
+	return &u, nil
+}

@@ -38,40 +38,7 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 // func (a *api) handleUserCreate(w http.ResponseWriter, r *http.Request) {}
 
 // GET /user/{id}
-func (a *api) handleUserGetById(w http.ResponseWriter, r *http.Request) {
-	userIdString := chi.URLParam(r, "id")
-
-	userId, err := strconv.ParseInt(userIdString, 10, 64)
-
-	if err != nil {
-		log.Printf("Не удалось сконвертировать ID: %v", err)
-		http.Error(w, "Invalid user ID", http.StatusBadRequest)
-		return
-	}
-	log.Printf("Получен запрос на получение пользователя с ID: %d", userId)
-
-	query := "SELECT id, name, status FROM users WHERE id = $1"
-
-	var user User
-	err = a.db.QueryRowContext(r.Context(), query, userId).Scan(&user.Id, &user.Name, &user.Status)
-
-	if err != nil {
-		if err == sql.ErrNoRows {
-			log.Printf("Пользователь с ID = %d не найден", userId)
-			http.Error(w, "User not found", http.StatusNotFound)
-			return
-		}
-
-		log.Printf("Не удалось найти пользователя в БД: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(user)
-
-}
+//func (a *api) handleUserGetById(w http.ResponseWriter, r *http.Request) {}
 
 // GET /user?status=true&name=alex
 func (a *api) handleUserGetByFilter(w http.ResponseWriter, r *http.Request) {
@@ -253,7 +220,7 @@ func main() {
 	r.Route("/user", func(r chi.Router) {
 		r.Post("/", userHandler.Create)
 		r.Get("/", apiObj.handleUserGetByFilter)
-		r.Get("/{id}", apiObj.handleUserGetById)
+		r.Get("/{id}", userHandler.GetByID)
 		r.Put("/{id}", apiObj.handleUserUpdate)
 		r.Delete("/{id}", apiObj.handleUserDelete)
 	})
